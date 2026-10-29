@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="google" content="notranslate-off">
+<title>La Placita · Carta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.4"></script>
+<style>
+:root{--bg:#0D0D0D;--card:#161616;--gold:#D4AF37;--line:#2a2a2a;--txt:#f4f1ea;--mut:#a9a49a}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--txt);font-family:'Jost',system-ui,sans-serif;margin:0;top:0!important;touch-action:pan-x pan-y;
+ background-image:radial-gradient(circle at 20% 0%,#1b1b1b 0,transparent 55%)}
+.serif{font-family:'Playfair Display',Georgia,serif}
+.no-sb{scrollbar-width:none}.no-sb::-webkit-scrollbar{display:none}
+.wrap{max-width:480px;margin:0 auto}
+#tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y;scroll-snap-type:none}
+.tab{flex:none;display:block;padding:.6rem 1rem;border-radius:999px;font-size:.82rem;font-weight:500;letter-spacing:.05em;color:var(--mut);border:1px solid var(--line);text-decoration:none;white-space:nowrap;-webkit-tap-highlight-color:transparent;transition:.2s}
+.tab.on{color:#0D0D0D;background:var(--gold);border-color:var(--gold)}
+section{scroll-margin-top:calc(var(--nav-h,64px) + 8px)}
+main>section:last-of-type{min-height:calc(100svh - var(--nav-h,64px) - 8px)}
+.dots{flex:1;border-bottom:1.5px dotted #555;margin:0 .5rem .32rem;min-width:12px}
+.al{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--gold);background:radial-gradient(circle at 30% 25%,#2b2410,#0D0D0D);display:inline-flex;align-items:center;justify-content:center;font-size:15px;line-height:1;box-shadow:0 0 0 2px rgba(212,175,55,.12);flex:none}
+.thumb{width:84px;height:84px;flex:none;border-radius:16px;object-fit:cover;border:1px solid var(--line)}
+.inp{width:100%;background:#0D0D0D;border:1px solid #333;border-radius:10px;color:var(--txt);padding:.6rem .7rem;font-size:16px;font-family:inherit}
+.inp:focus{outline:2px solid var(--gold);border-color:transparent}
+.btn{border-radius:12px;padding:.65rem 1rem;font-weight:600;font-size:.9rem}
+.gold{background:var(--gold);color:#0D0D0D}
+.ghost{border:1px solid #444;color:var(--txt)}
+.lbl{font-size:.72rem;color:var(--mut);margin-bottom:.15rem;display:block}
+.lg{padding:.2rem .6rem;font-size:.75rem;font-weight:600;border-radius:999px;color:var(--mut)}
+.lg.on{background:var(--gold);color:#0D0D0D}
+/* ocultar la barra y los adornos de Google Translate */
+.goog-te-banner-frame,.skiptranslate>iframe,#goog-gt-tt,.goog-tooltip,.VIpgJd-ZVi9od-aZ2wEe-wOHMyf{display:none!important}
+.goog-text-highlight{background:none!important;box-shadow:none!important}
+#google_translate_element{display:none}
+</style>
+</head>
+<body>
+<div id="app" class="wrap"></div>
+<div id="google_translate_element"></div>
+<div id="modal" class="notranslate" style="display:none;position:fixed;inset:0;z-index:60;align-items:center;justify-content:center;padding:1.5rem;background:rgba(0,0,0,.82);backdrop-filter:blur(6px)">
+  <div style="width:100%;max-width:340px;background:#141414;border:1px solid var(--gold);border-radius:24px;padding:1.5rem;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+    <div style="text-align:center;font-size:1.8rem">🔐</div>
+    <h3 class="serif" style="text-align:center;font-size:1.25rem;color:var(--gold);margin:.25rem 0 0">Acceso propietario</h3>
+    <input id="pw" type="password" placeholder="Пароль" autocomplete="current-password" class="inp" style="margin-top:1rem;text-align:center">
+    <p id="pwerr" style="color:#ff8a8a;font-size:.75rem;text-align:center;min-height:1rem;margin:.5rem 0 0"></p>
+    <div style="display:flex;gap:.5rem;margin-top:.75rem"><button id="pwno" class="btn ghost" style="flex:1">Отмена</button><button id="pwok" class="btn gold" style="flex:1">Войти</button></div>
+  </div></div>
+<div id="toast" class="notranslate fixed left-1/2 -translate-x-1/2 bottom-24 z-50 px-5 py-3 rounded-full text-sm font-semibold gold shadow-xl opacity-0 pointer-events-none transition-opacity text-center" style="max-width:90vw"></div>
+
+<script>
+/* ============ ALMACENAMIENTO: funciones serverless de Vercel (/api) ============
+   El token de GitHub NO está aquí: vive en las variables de entorno de Vercel. */
+let ADMIN_PW='';   // solo en memoria mientras el panel está abierto
+const db={
+  async load(admin){
+    const r=await fetch(admin?'/api/load?admin=true':'/api/load',admin?{cache:'no-store',headers:{'x-admin-password':ADMIN_PW}}:{});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    return r.json();
+  },
+  async save(d){
+    const r=await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json','x-admin-password':ADMIN_PW},body:JSON.stringify(d)});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+  }
+};
+const saveErr=m=>/401/.test(m)?'contraseña no válida en el servidor':/500/.test(m)?'faltan variables de entorno en Vercel':/409/.test(m)?'conflicto, repite':m;
+
+/* ============ SEGURIDAD: contraseña como SHA-256 ============ */
+const SALT='laplacita:', PASS_SHA='b9c384c6bccaa8200f7243f3fe7b4ad5d2c29d3eadaba6f63c9d1261da0c018e';
+const sha=async t=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t)))].map(x=>x.toString(16).padStart(2,'0')).join('');
+
+/* ============ 14 ALÉRGENOS ============ */
+const AL=[['gluten','Gluten','🌾'],['crustaceos','Crustáceos','🦐'],['huevo','Huevo','🥚'],['pescado','Pescado','🐟'],['cacahuetes','Cacahuetes','🥜'],['soja','Soja','🌱'],['lacteos','Lácteos','🥛'],['frutos','Frutos de cáscara','🌰'],['apio','Apio','🥬'],['mostaza','Mostaza','🟡'],['sesamo','Sésamo','🥯'],['sulfitos','Sulfitos','🍷'],['altramuces','Altramuces','🌼'],['moluscos','Moluscos','🐚']];
+const AM=Object.fromEntries(AL.map(a=>[a[0],a]));
+const SL={G:'gluten',L:'lacteos',H:'huevo',P:'pescado',C:'crustaceos',M:'moluscos'};
+const WA='34628932231';
+const MAP_LINK='https://maps.google.com/maps?vet=10CAAQoqAOahcKEwjwnoSc8NyXAxUAAAAAHQAAAAAQBQ..i&rlz=1C5AJCO_enES1197ES1199&udm&fvr=1&pvq=Cg0vZy8xMXlzd2ptYnJ5&cs=0&um=1&ie=UTF-8&fb=1&gl=es&sa=X&ftid=0xd60495c1ef9fbd5:0x27b5ec15b5215e44';
+const ADDRESS='C/ de la Font de la Figuera, 11, Quatre Carreres, 46006 València, Valencia';
+const MAP_QUERY='La Placita, '+ADDRESS;
+const MAP_EMBED='https://maps.google.com/maps?'+(MAP_QUERY?'q='+encodeURIComponent(MAP_QUERY):'ftid=0xd60495c1ef9fbd5:0x27b5ec15b5215e44')+'&output=embed&hl=es';
+
+/* ============ MENÚ POR DEFECTO (nombre|descripción|precio|alérgenos: G L H P C M) ============ */
+const SEED=[
+["Desayunos","Tu lugar de siempre",[
+"Tostada de aceite y tomate|Tostadas. Incluye café, infusión o refresco|2,50|G",
+"Tostada de mantequilla y mermelada|Tostadas. Incluye café, infusión o refresco|2,50|GL",
+"Tostada de tomate rallado y jamón|Tostadas. Incluye café, infusión o refresco|3,50|G",
+"Huevos con Bacon|Huevos fritos con bacon|5,00|H",
+"Pincho de Tortilla|Pincho de tortilla de patata|4,00|GH"]],
+["Bocadillos","Nuestros bocadillos y montaditos",[
+"La Placita|Pimiento frito, jamón serrano, lomo a la plancha y salsa de pimienta verde|6,50|GL",
+"Bocadillo Potente|Carne de ternera, queso, cebolla caramelizada, huevo y salsa pimienta mostaza|7,50|GHL",
+"Chivito|Lomo, bacon, queso fundido, lechuga, tomate y mayonesa|6,50|GLH",
+"Pollo Crujiente|Pechuga de pollo crujiente, lechuga, tomate y salsa de mostaza y miel|6,50|GH",
+"Serrano|Jamón serrano, queso y tortilla francesa|7,00|GLH",
+"Del Barrio|Patatas panaderas, huevo frito, bacon a la plancha y mayonesa|6,50|GH",
+"Calamares a la Romana|Calamares a la romana acompañados con salsa alioli|6,50|GHM",
+"Blanco y Negro|Longaniza y morcilla a la plancha con salsa de pimienta verde|6,00|G",
+"Tortilla Francesa|Acompañado de salsa de la casa, o tomate, y bacon o jamón|6,50|GH",
+"Brascada Tradicional|Filete de ternera, jamón serrano y cebolla pochada|7,50|G",
+"Hamburguesa Casera|Carne, pan brioche, lechuga, tomate, cheddar y bacon, con patatas fritas|8,50|GLH"]],
+["Ensaladas","",[
+"Ensalada Valenciana|Lechuga, tomate, cebolla, oliva, huevo duro y atún|6,50|HP",
+"Ensaladilla Rusa|Receta de la casa, con su toque original|6,50|H",
+"Ensalada de Pollo Crujiente|Pollo crujiente sobre cama de lechuga, tomate cherry, salsa mostaza miel y queso manchego rallado|6,50|GLH"]],
+["Carnes","",[
+"Ternera a la Plancha|Acompañado con patatas fritas con huevo y salsa a elección|10,00|H",
+"Pechuga a la Plancha|Acompañado de patatas o ensalada, y huevo|8,00|H",
+"Lomo a la Plancha|Lomo de cerdo, patatas fritas y huevo|7,50|H",
+"Fingers de Pollo Crujientes|Fingers, patatas fritas y huevo|8,00|GH",
+"Chorizos Criollos|Sabor intenso. Con la receta de la casa, acompañado de patata panadera o frita|8,00|"]],
+["Pescados","",[
+"Emperador a la Plancha|Acompañado con patatas fritas con huevo y salsa a elección|9,00|PH",
+"Sepia a la Plancha|Sepia en salsa Meri, acompañada de ensalada o patatas, y limón|12,00|M",
+"Puntilla Crocante|Puntilla frita crujiente|10,00|GM",
+"Dorada a la Plancha||10,00|P",
+"Lubina a la Plancha||10,00|P"]],
+["Tapas","Para empezar",[
+"Croquetas de Jamón con Boletus|Las clásicas, ultra cremosas y con un buen sofrito de jamón|9,00|GL",
+"Croquetas de Pollo al Ajillo|Con el sabor tradicional del pollo asado de la abuela, melosa por dentro y crujiente por fuera|7,50|GL",
+"Croquetas de Gambas||8,50|GLC",
+"Patatas Bravas Caseras|Dados de patata rústica crujientes, servidos con alioli casero y salsa brava tradicional|5,50|H",
+"Calamares a la Romana|Anillas de calamar tierno con un rebozado casero, ligero y crujiente, servidos con limón y alioli|8,50|GHM",
+"Morro de Cerdo Frito|Auténtico morro crujiente y tierno, frito a alta temperatura, y sazonado en su punto de sal|8,50|",
+"Sepia Plancha||10,00|M",
+"Alitas de Pollo|Alitas doradas y jugosas, sazonadas con un toque de especias de la casa|7,50|",
+"Gambas al Ajillo|En aceite de oliva, con guindilla, pimentón de la vera y finas láminas de ajo dorado|8,00|C",
+"Huevos Rotos con Jamón o Morcilla|En base de patata, con huevos a elegir lascas de jamón, o morcilla artesanal|7,50|H",
+"Torreznos de Soria||8,50|",
+"Pescaditos Fritos||7,50|GP"]],
+["Postres","Caseros",[
+"Tarta de Queso|Suave, cremosa y con el toque justo de dulzor|4,00|GLH",
+"Brownie con Helado|Bizcocho templado de chocolate con una bola de helado vainilla|4,50|GLH",
+"Flan de Café|Textura sedosa con un intenso sabor a café tostado|4,00|LH",
+"Tarta de la Abuela|Postre tradicional de capas de galletas, crema pastelera y chocolate|4,50|GLH"]],
+["Bebidas","Acompañado de su aperitivo",[
+"Caña Aguila||1,50|","Doble Aguila||2,20|","Caña 1870||1,70|","Doble 1870||2,50|",
+"Tercio Amstel||2,00|","Tercio Heineken||2,50|","Gran Reserva||2,50|","Vino Tinto||2,00|",
+"Vino Blanco||2,00|","Sangría||3,20|","Tinto de Verano||2,50|","Botella Vino||13,00|"]]
+];
+const uid=()=>Math.random().toString(36).slice(2,9);
+const seed=()=>({cats:SEED.map(([name,sub,items])=>({id:uid(),name,sub,items:items.map(s=>{const[n,d,p,a]=s.split('|');return{id:uid(),name:n,desc:d,price:p,img:'',al:a.split('').map(c=>SL[c]).filter(Boolean)}})}))});
+const clean=d=>d&&Array.isArray(d.cats)&&d.cats.length?{cats:d.cats.map(c=>({id:c.id||uid(),name:String(c.name||''),sub:String(c.sub||''),
+  items:(Array.isArray(c.items)?c.items:[]).map(i=>({id:i.id||uid(),name:String(i.name||''),desc:String(i.desc||''),price:String(i.price||''),img:String(i.img||''),al:(Array.isArray(i.al)?i.al:[]).filter(a=>a in AM)}))}))}:null;
+const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=p=>{p=String(p).trim();return p?(p.includes('€')?p:p+'€'):''};
+const safeUrl=u=>/^https?:\/\//i.test(String(u).trim())?String(u).trim():'';
+const legend=()=>`<div class="grid grid-cols-2 gap-x-3 gap-y-2 text-xs text-left" style="color:var(--mut)">${AL.map(a=>`<span class="flex items-center gap-2"><span class="al">${a[2]}</span>${a[1]}</span>`).join('')}</div>`;
+
+let data,draft,isAdmin=false,fails=0,lang='es';
+const $app=document.getElementById('app');
+const toast=m=>{const t=document.getElementById('toast');t.textContent=m;t.style.opacity=1;clearTimeout(t._t);t._t=setTimeout(()=>t.style.opacity=0,2200)};
+
+/* ============ GOOGLE TRANSLATE (ES ⇄ EN sin recargar) ============ */
+document.cookie='googtrans=;path=/;max-age=0';
+window.gtInit=()=>new google.translate.TranslateElement({pageLanguage:'es',includedLanguages:'en,es',autoDisplay:false},'google_translate_element');
+{const s=document.createElement('script');s.src='https://translate.google.com/translate_a/element.js?cb=gtInit';s.async=true;document.head.appendChild(s)}
+function setLang(l){
+  lang=l;document.querySelectorAll('.lg').forEach(b=>b.classList.toggle('on',b.dataset.l===l));
+  const c=document.querySelector('.goog-te-combo');
+  if(!c){toast('Cargando traductor… / Loading translator…');return}
+  c.value=l==='en'?'en':([...c.options].some(o=>o.value==='es')?'es':'');
+  c.dispatchEvent(new Event('change'));
+  if(l==='es')setTimeout(()=>{if(document.documentElement.classList.contains('translated-ltr')||document.documentElement.classList.contains('translated-rtl'))location.reload()},800);
+}
+
+/* ============ CLIENTE ============ */
+function renderClient(){
+  const cats=data.cats.filter(c=>c.items.length);
+  $app.innerHTML=`
+  <header class="text-center pt-7 pb-5 px-6">
+    <div class="notranslate flex justify-end gap-1 mb-3"><button class="lg ${lang==='es'?'on':''}" data-l="es">ES</button><button class="lg ${lang==='en'?'on':''}" data-l="en">EN</button></div>
+    <div id="logo" class="select-none inline-block notranslate">
+      <div class="text-3xl" style="color:var(--gold)">☕ 🍸</div>
+      <h1 class="serif text-[2.4rem] leading-none tracking-wide mt-1" style="font-weight:500">LA PLACITA</h1>
+    </div>
+    <p class="serif italic mt-2" style="color:var(--gold)">Tu lugar de siempre</p>
+    <p class="text-xs mt-3" style="color:var(--mut)">Abierto de martes a domingo · domingos de 8:00 a 15:00</p>
+    <div class="mt-4 mx-auto rounded-2xl px-4 py-3 text-sm" style="border:1px solid var(--gold);max-width:300px">
+      <span class="serif italic" style="color:var(--gold)">Menú del día en comidas</span><br>
+      Primero + Segundo + Postre + Bebida · <b class="notranslate" style="color:var(--gold)">11,00€</b></div>
+    <a href="#alergenos" class="inline-flex items-center gap-2 mt-4 text-sm" style="color:var(--gold)"><span class="al">🌾</span>Ver alérgenos ↓</a>
+  </header>
+  <nav class="sticky top-0 z-30 py-2 px-3" style="background:rgba(13,13,13,.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)">
+    <div id="tabs" class="flex gap-1.5 no-sb">${cats.map(c=>`<a class="tab" href="#s-${c.id}">${e(c.name)}</a>`).join('')}</div>
+  </nav>
+  <main class="px-5 pb-40">
+  ${cats.map(c=>`
+    <section id="s-${c.id}" class="pt-9">
+      <div class="text-center mb-5">
+        ${c.sub?`<div class="serif italic text-lg" style="color:var(--gold);opacity:.85">${e(c.sub)}</div>`:''}
+        <h2 class="serif text-2xl tracking-wider uppercase" style="color:var(--gold);font-weight:700">${e(c.name)}</h2>
+        <div class="mx-auto mt-2" style="width:56px;height:1px;background:var(--gold)"></div>
+      </div>
+      <div class="space-y-5">
+      ${c.items.map(i=>`
+        <article class="flex gap-3 items-start">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-end"><h3 class="font-medium text-[1.02rem] leading-tight">${e(i.name)}</h3><span class="dots"></span>
+              <span class="notranslate font-semibold whitespace-nowrap" style="color:var(--gold)">${e(fmt(i.price))}</span></div>
+            ${i.desc?`<p class="text-sm mt-1 leading-snug" style="color:var(--mut)">${e(i.desc)}</p>`:''}
+            ${i.al.length?`<div class="notranslate flex flex-wrap gap-1.5 mt-2">${i.al.map(a=>`<span class="al" title="${AM[a][1]}" role="img" aria-label="${AM[a][1]}">${AM[a][2]}</span>`).join('')}</div>`:''}
+          </div>
+          ${safeUrl(i.img)?`<img class="thumb" src="${e(safeUrl(i.img))}" alt="${e(i.name)}" loading="lazy" onerror="this.remove()">`:''}
+        </article>`).join('')}
+      </div>
+    </section>`).join('')}
+    <div id="mapa" class="mt-14 text-center">
+      <div class="serif italic text-lg" style="color:var(--gold);opacity:.85">Cómo llegar</div>
+      <h2 class="serif text-2xl tracking-wider uppercase" style="color:var(--gold);font-weight:700">Dónde estamos</h2>
+      <div class="mx-auto mt-2 mb-4" style="width:56px;height:1px;background:var(--gold)"></div>
+      <iframe src="${MAP_EMBED}" title="Mapa" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen style="width:100%;height:260px;border:1.5px solid var(--gold);border-radius:18px;background:#1a1a1a"></iframe>
+      <p class="mt-3 text-sm notranslate">📍 ${ADDRESS}</p>
+      <a href="${MAP_LINK}" target="_blank" rel="noopener" class="btn ghost inline-block mt-2" style="border-color:var(--gold);color:var(--gold)">Abrir en Google Maps</a>
+    </div>
+    <div id="alergenos" class="mt-14 text-center scroll-mt-24" style="scroll-margin-top:calc(var(--nav-h,64px) + 8px)">
+      <h2 class="serif text-2xl tracking-wider uppercase" style="color:var(--gold);font-weight:700">Alérgenos</h2>
+      <div class="mx-auto mt-2 mb-4" style="width:56px;height:1px;background:var(--gold)"></div>
+      ${legend()}
+      <p class="text-xs mt-5" style="color:var(--mut)">Bar · Cafetería · Informa al personal si tienes alguna alergia o intolerancia.</p>
+    </div>
+  </main>
+  <footer class="fixed bottom-0 inset-x-0 z-40" style="background:linear-gradient(transparent,#0D0D0D 35%);padding:1.5rem 1rem calc(1rem + env(safe-area-inset-bottom))">
+    <a href="https://wa.me/${WA}?text=${encodeURIComponent('Hola, quiero reservar una mesa en La Placita.')}" target="_blank" rel="noopener"
+       class="wrap flex items-center justify-center gap-2 rounded-2xl py-3.5 font-semibold tracking-wider text-white shadow-xl" style="background:#25D366;max-width:448px">💬 RESERVAR MESA POR WHATSAPP</a>
+  </footer>`;
+
+  document.querySelectorAll('.lg').forEach(b=>b.onclick=()=>setLang(b.dataset.l));
+  const nav=document.querySelector('nav'),box=document.getElementById('tabs');
+  const tabs=[...document.querySelectorAll('.tab')];
+  const secs=cats.map(c=>document.getElementById('s-'+c.id));
+  const navH=()=>nav.offsetHeight;
+  const setVar=()=>document.documentElement.style.setProperty('--nav-h',navH()+'px');
+  setVar();window.onresize=setVar;
+  let lock=false,lt,cur=-1;
+  const mark=k=>{if(k===cur)return;cur=k;tabs.forEach((t,i)=>t.classList.toggle('on',i===k));
+    const t=tabs[k];if(t)box.scrollTo({left:t.offsetLeft-(box.clientWidth-t.offsetWidth)/2,behavior:'smooth'})};
+  const goTo=el=>{lock=true;clearTimeout(lt);
+    scrollTo({top:Math.max(0,el.getBoundingClientRect().top+scrollY-navH()-8),behavior:'smooth'});
+    lt=setTimeout(()=>lock=false,900)};
+  tabs.forEach((t,k)=>t.addEventListener('click',ev=>{ev.preventDefault();mark(k);goTo(secs[k])}));
+  document.querySelector('a[href="#alergenos"]').addEventListener('click',ev=>{ev.preventDefault();goTo(document.getElementById('alergenos'))});
+  const onScroll=()=>{
+    if(lock){clearTimeout(lt);lt=setTimeout(()=>lock=false,150);return}
+    let k=0;secs.forEach((s,i)=>{if(s.getBoundingClientRect().top<=navH()+24)k=i});mark(k)};
+  window.onscroll=onScroll;onScroll();
+
+  // 5 toques rápidos en el logo → contraseña
+  let n=0,tm;document.getElementById('logo').onclick=()=>{n++;clearTimeout(tm);tm=setTimeout(()=>n=0,1500);if(n>=5){n=0;openModal()}};
+  if(lang==='en')setTimeout(()=>setLang('en'),60);
+}
+
+/* ============ ACCESO ADMIN (modal) ============ */
+const $m=document.getElementById('modal'),$pw=document.getElementById('pw'),$err=document.getElementById('pwerr');
+const lockLeft=()=>Math.ceil(((+sessionStorage.getItem('lp_lock')||0)-Date.now())/1000);
+function openModal(){$pw.value='';$err.textContent=lockLeft()>0?'Bloqueado. Espera '+lockLeft()+' s':'';$m.style.display='flex';setTimeout(()=>$pw.focus(),60)}
+function closeModal(){$m.style.display='none';$pw.value=''}
+async function tryLogin(){
+  if(lockLeft()>0){$err.textContent='Bloqueado. Espera '+lockLeft()+' s';return}
+  const pw=$pw.value;if(!pw)return;
+  if(await sha(SALT+pw)===PASS_SHA){
+    fails=0;ADMIN_PW=pw;isAdmin=true;closeModal();toast('Cargando carta…');
+    let fresh=null;
+    try{fresh=clean(await db.load(true))}catch(err){toast('No se pudo leer la carta del servidor ('+saveErr(err.message)+')')}
+    draft=JSON.parse(JSON.stringify(fresh||data));renderAdmin();
+  }else{
+    fails++;
+    if(fails>=3){fails=0;sessionStorage.setItem('lp_lock',Date.now()+30000);$err.textContent='3 intentos fallidos: bloqueado 30 s'}
+    else $err.textContent='Contraseña incorrecta ('+(3-fails)+' intentos)';
+    $pw.value='';
+  }
+}
+document.getElementById('pwok').onclick=tryLogin;
+document.getElementById('pwno').onclick=closeModal;
+$pw.onkeydown=ev=>{if(ev.key==='Enter')tryLogin();if(ev.key==='Escape')closeModal()};
+$m.onclick=ev=>{if(ev.target===$m)closeModal()};
+
+/* ============ ADMIN ============ */
+function itemHTML(i,ci,ii){return `
+  <div class="rounded-2xl p-3 mb-3" style="background:var(--card);border:1px solid var(--line)">
+    <div class="flex gap-2">
+      <div class="flex-1"><label class="lbl">Nombre</label><input class="inp" data-c="${ci}" data-i="${ii}" data-f="name" value="${e(i.name)}"></div>
+      <div style="width:92px"><label class="lbl">Precio €</label><input class="inp" inputmode="decimal" data-c="${ci}" data-i="${ii}" data-f="price" value="${e(i.price)}"></div>
+    </div>
+    <label class="lbl mt-2">Descripción</label><textarea rows="2" class="inp" data-c="${ci}" data-i="${ii}" data-f="desc">${e(i.desc)}</textarea>
+    <label class="lbl mt-2">URL de la foto</label><input class="inp" type="url" placeholder="https://..." data-c="${ci}" data-i="${ii}" data-f="img" value="${e(i.img)}">
+    <label class="lbl mt-3">Alérgenos</label>
+    <div class="grid grid-cols-2 gap-x-2 gap-y-2">${AL.map(a=>`
+      <label class="flex items-center gap-2 text-sm"><input type="checkbox" class="accent-[#D4AF37]" style="width:18px;height:18px" data-c="${ci}" data-i="${ii}" data-al="${a[0]}" ${i.al.includes(a[0])?'checked':''}><span>${a[2]} ${a[1]}</span></label>`).join('')}</div>
+    <button class="text-sm mt-3" style="color:#ff6b6b" data-act="delItem" data-c="${ci}" data-i="${ii}">Eliminar plato</button>
+  </div>`}
+
+function renderAdmin(keep){
+  window.onscroll=null;window.onresize=null;
+  const y=keep?scrollY:0;
+  $app.innerHTML=`<div class="notranslate" translate="no">
+  <div class="sticky top-0 z-30 px-4 py-3 flex items-center justify-between" style="background:#0D0D0D;border-bottom:1px solid var(--line)">
+    <h1 class="serif text-xl" style="color:var(--gold)">Editar carta</h1>
+    <button class="btn ghost !py-2" data-act="exit">Ver carta</button>
+  </div>
+  <div class="px-4 pt-4 pb-40">
+    ${draft.cats.map((c,ci)=>`
+    <details class="mb-4 rounded-2xl" style="border:1px solid var(--gold);background:#111" ${c.open?'open':''} data-cd="${ci}">
+      <summary class="px-4 py-3 serif text-lg cursor-pointer" style="color:var(--gold)">${e(c.name||'Nueva categoría')} <span class="text-xs" style="color:var(--mut)">(${c.items.length})</span></summary>
+      <div class="p-3">
+        <div class="flex gap-2 mb-3">
+          <div class="flex-1"><label class="lbl">Categoría</label><input class="inp" data-c="${ci}" data-cf="name" value="${e(c.name)}"></div>
+          <div class="flex-1"><label class="lbl">Subtítulo (cursiva)</label><input class="inp" data-c="${ci}" data-cf="sub" value="${e(c.sub)}"></div>
+        </div>
+        ${c.items.map((i,ii)=>itemHTML(i,ci,ii)).join('')}
+        <button class="btn ghost w-full" data-act="addItem" data-c="${ci}">+ Añadir plato</button>
+        <button class="text-sm mt-3 block mx-auto" style="color:#ff6b6b" data-act="delCat" data-c="${ci}">Eliminar categoría completa</button>
+      </div>
+    </details>`).join('')}
+    <button class="btn ghost w-full" data-act="addCat">+ Nueva categoría</button>
+    <button class="text-sm mt-6 block mx-auto" style="color:var(--mut)" data-act="reset">Restaurar carta original</button>
+  </div>
+  <div class="fixed bottom-0 inset-x-0 z-40 p-4" style="background:linear-gradient(transparent,#0D0D0D 30%);padding-bottom:calc(1rem + env(safe-area-inset-bottom))">
+    <button class="btn gold w-full text-base" style="max-width:448px;display:block;margin:0 auto" data-act="save">Guardar cambios</button>
+  </div></div>`;
+  scrollTo(0,y);
+}
+
+$app.addEventListener('input',ev=>{
+  const t=ev.target;if(!draft||t.dataset.c===undefined)return;
+  const c=draft.cats[+t.dataset.c];
+  if(t.dataset.cf)c[t.dataset.cf]=t.value;
+  else if(t.dataset.f)c.items[+t.dataset.i][t.dataset.f]=t.value;
+});
+$app.addEventListener('change',ev=>{
+  const t=ev.target;if(!draft||!t.dataset.al)return;
+  const it=draft.cats[+t.dataset.c].items[+t.dataset.i];
+  it.al=t.checked?[...new Set([...it.al,t.dataset.al])]:it.al.filter(a=>a!==t.dataset.al);
+});
+$app.addEventListener('toggle',ev=>{const d=ev.target;if(d.dataset&&d.dataset.cd!==undefined&&draft)draft.cats[+d.dataset.cd].open=d.open},true);
+$app.addEventListener('click',async ev=>{
+  const b=ev.target.closest('[data-act]');if(!b||!isAdmin||!draft)return;
+  const a=b.dataset.act,ci=+b.dataset.c,ii=+b.dataset.i;
+  if(a==='addItem'){draft.cats[ci].items.push({id:uid(),name:'Nuevo plato',desc:'',price:'0,00',img:'',al:[]});draft.cats[ci].open=true;renderAdmin(true)}
+  else if(a==='delItem'){if(confirm('¿Eliminar este plato?')){draft.cats[ci].items.splice(ii,1);draft.cats[ci].open=true;renderAdmin(true)}}
+  else if(a==='addCat'){draft.cats.push({id:uid(),name:'Nueva categoría',sub:'',items:[],open:true});renderAdmin(false);scrollTo(0,document.body.scrollHeight)}
+  else if(a==='delCat'){if(confirm('¿Eliminar la categoría y todos sus platos?')){draft.cats.splice(ci,1);renderAdmin(true)}}
+  else if(a==='reset'){if(confirm('Se perderán todos los cambios. ¿Restaurar la carta original?')){draft=seed();renderAdmin(false)}}
+  else if(a==='save'){
+    const out={cats:draft.cats.map(({open,...c})=>c)};
+    b.disabled=true;b.textContent='Сохранение... ⏳';
+    try{await db.save(out);data=clean(JSON.parse(JSON.stringify(out)));b.textContent='Сохранено! ✅';toast('Сохранено! ✅');}
+    catch(err){console.warn(err);b.textContent='Ошибка ❌';toast('Ошибка ❌ ('+saveErr(err.message)+')')}
+    setTimeout(()=>{b.disabled=false;b.textContent='Guardar cambios'},1800);
+  }
+  else if(a==='exit'){draft=null;isAdmin=false;ADMIN_PW='';renderClient();scrollTo(0,0)}
+});
+
+/* ============ ARRANQUE ============ */
+(async()=>{
+  $app.innerHTML='<p class="text-center pt-40 serif italic" style="color:var(--gold)">Cargando la carta…</p>';
+  try{data=clean(await db.load())}catch(err){console.warn(err)}
+  if(!data)data=seed();
+  renderClient();
+})();
+</script>
+</body>
+</html>
