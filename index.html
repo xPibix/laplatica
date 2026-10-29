@@ -70,7 +70,7 @@ const db={
 const saveErr=m=>/401/.test(m)?'contraseña no válida en el servidor':/500/.test(m)?'faltan variables de entorno en Vercel':/409/.test(m)?'conflicto, repite':m;
 
 /* ============ SEGURIDAD: contraseña como SHA-256 ============ */
-const SALT='laplacita:', PASS_SHA='bdf0647895e6cf27694bf66dfbfd11820464f165e31765cb18f8139589d97bf2';
+const SALT='laplacita:', PASS_SHA='b9c384c6bccaa8200f7243f3fe7b4ad5d2c29d3eadaba6f63c9d1261da0c018e';
 const sha=async t=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t)))].map(x=>x.toString(16).padStart(2,'0')).join('');
 
 /* ============ 14 ALÉRGENOS ============ */
